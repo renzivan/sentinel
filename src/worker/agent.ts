@@ -93,6 +93,17 @@ Perform this single step now, then report the JSON verdict.`;
           playwright: {
             command: "npx",
             args: ["playwright-mcp", "--cdp-endpoint", cdpEndpoint],
+            // `tools: []` above disables every built-in tool, including the
+            // built-in ToolSearch tool that the SDK normally uses to lazily
+            // discover/load MCP tools on demand. Without ToolSearch, MCP
+            // tools stay permanently deferred and uncallable — the model
+            // sees no tools at all and hallucinates fake tool invocations as
+            // text instead of acting (confirmed live: init message reports
+            // "tools": [] and the MCP server stays "pending" for the whole
+            // turn). `alwaysLoad: true` puts this server's tools directly on
+            // the turn-1 prompt, bypassing the ToolSearch/deferred-loading
+            // path entirely, so they're usable even with no built-ins.
+            alwaysLoad: true,
           },
         },
       },

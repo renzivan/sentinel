@@ -1,2 +1,0 @@
-[      11ms] [ERROR] SPIKE_CONSOLE_ERROR @ http://localhost:8792/:1
-[      16ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8792/missing-xyz:0
