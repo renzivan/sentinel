@@ -2,25 +2,35 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { parseSteps } from "@/lib/flow-steps";
 
 type Flow = { id: number; name: string; steps: string[] };
+
+function stepsEqual(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
 
 export default function FlowEditor({ flow }: { flow: Flow }) {
   const router = useRouter();
   const [name, setName] = useState(flow.name);
   const [stepsText, setStepsText] = useState(flow.steps.join("\n"));
+  const [savedName, setSavedName] = useState(flow.name);
+  const [savedSteps, setSavedSteps] = useState(flow.steps);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const dirty = name !== flow.name || stepsText !== flow.steps.join("\n");
+  const parsedSteps = parseSteps(stepsText);
+  const stepsDirty = !stepsEqual(parsedSteps, savedSteps);
+  const dirty = name !== savedName || stepsDirty;
+  // Running always executes the currently-saved steps, so Run only needs the
+  // saved steps to match what's parsed from the textarea right now (and at
+  // least one step to exist) -- an unsaved name-only edit shouldn't block it.
+  const canRun = parsedSteps.length > 0 && !stepsDirty;
 
   async function save() {
-    const stepList = stepsText
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const stepList = parsedSteps;
     if (stepList.length === 0) {
       setError("Add at least one step");
       return;
@@ -34,6 +44,8 @@ export default function FlowEditor({ flow }: { flow: Flow }) {
         body: JSON.stringify({ name, steps: stepList }),
       });
       if (!res.ok) throw new Error("Save failed");
+      setSavedName(name);
+      setSavedSteps(stepList);
       setSaved(true);
       router.refresh();
     } catch {
@@ -104,8 +116,8 @@ export default function FlowEditor({ flow }: { flow: Flow }) {
         <button
           type="button"
           onClick={run}
-          disabled={running || dirty}
-          title={dirty ? "Save your changes before running" : undefined}
+          disabled={running || !canRun}
+          title={!canRun ? "Save your changes before running" : undefined}
           className="rounded-md bg-emerald-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {running ? "Starting…" : "Run"}
