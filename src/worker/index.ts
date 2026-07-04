@@ -1,3 +1,4 @@
+import "./load-env.js";
 import { runMigrations } from "../db/migrate.js";
 import { claimNextRun } from "./queue.js";
 import { executeRun } from "./runner.js";
