@@ -45,26 +45,29 @@ This creates the SQLite database and runs all migrations.
 
 ## Running
 
-E2E Tester requires **two separate processes** running simultaneously:
+E2E Tester needs two processes: the **web UI** and the **run executor (worker)**.
 
-### Terminal 1: Web UI
+### Local: one command
 
 ```bash
 npm run dev
 ```
 
-Opens the Next.js development server (default: `http://localhost:3000`).
+Runs both together (labelled `web` and `worker`). Press Ctrl-C to stop both.
+The web UI opens on the first free port from `3000` (e.g. `http://localhost:3000`); the worker auto-reloads on code changes.
 
-### Terminal 2: Run Executor (Worker)
+### Running them separately
+
+Useful in production, or when you want each in its own terminal:
 
 ```bash
-npm run worker
+npm run dev:web   # web UI only (dev)
+# or, for production: npm run build && npm run start
+npm run worker    # run executor
 ```
 
-Starts the background worker that executes runs, drives Playwright + Claude, and polls the run queue every 2 seconds.
-
 Both processes must be running for the app to function.
-The worker will print a warning if `ANTHROPIC_API_KEY` is set; unset it to use your CLI subscription.
+The worker will print a warning if `ANTHROPIC_API_KEY` is set; it unsets it so runs always use your CLI subscription.
 
 ## Usage
 
@@ -172,7 +175,7 @@ E2E Tester uses your Claude subscription (CLI login) rather than API credits.
 
 ### Worker not executing runs
 
-1. Ensure both `npm run dev` and `npm run worker` are running.
+1. Ensure the worker is running (`npm run dev` starts it alongside the web UI; or run `npm run worker` on its own).
 2. Check the worker logs for `ANTHROPIC_API_KEY` warning; unset it if present.
 3. Verify `claude -p` succeeds (CLI is logged in).
 4. Confirm the database migrations have run (`npm run db:migrate`).
