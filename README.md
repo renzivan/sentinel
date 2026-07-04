@@ -63,7 +63,8 @@ npm run worker
 
 Starts the background worker that executes runs, drives Playwright + Claude, and polls the run queue every 2 seconds.
 
-Both processes must be running for the app to function. The worker will print a warning if `ANTHROPIC_API_KEY` is set; unset it to use your CLI subscription.
+Both processes must be running for the app to function.
+The worker will print a warning if `ANTHROPIC_API_KEY` is set; unset it to use your CLI subscription.
 
 ## Usage
 
