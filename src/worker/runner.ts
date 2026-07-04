@@ -1,0 +1,139 @@
+import { chromium } from "playwright";
+import { eq } from "drizzle-orm";
+import { getDb } from "../db/client.js";
+import { runs, flows, projects, projectVars, stepResults, findings, artifacts } from "../db/schema.js";
+import { EvidenceCollector, consoleErrors, networkErrors } from "./evidence.js";
+import { runStepWithAgent } from "./agent.js";
+import { substituteVars, maskSecrets, type Var } from "../lib/vars.js";
+import { defaultSeverityFor } from "../lib/severity.js";
+import { decryptSecret } from "../lib/crypto.js";
+import { setRunStatus } from "./queue.js";
+
+// Fixed CDP port shared between the runner's Playwright client (which owns the
+// page + evidence listeners) and the agent's playwright-mcp subprocess (which
+// connects over CDP). The worker executes one run at a time, so a fixed port is
+// safe. The shared-browser model was validated by a spike: playwright-mcp,
+// connected over CDP, REUSES the runner's pre-created page rather than opening
+// its own tab, so the runner's page-level console/network listeners and
+// screenshots capture exactly the page the agent acts on.
+const CDP_PORT = 9222;
+
+export async function executeRun(runId: number): Promise<void> {
+  const db = getDb();
+  const run = db.select().from(runs).where(eq(runs.id, runId)).all()[0];
+  if (!run) return;
+  const flow = db.select().from(flows).where(eq(flows.id, run.flowId)).all()[0];
+  if (!flow) {
+    setRunStatus(runId, "error", `flow ${run.flowId} not found`);
+    return;
+  }
+  const project = db.select().from(projects).where(eq(projects.id, flow.projectId)).all()[0];
+  if (!project) {
+    setRunStatus(runId, "error", `project ${flow.projectId} not found`);
+    return;
+  }
+
+  const rawVars = db.select().from(projectVars).where(eq(projectVars.projectId, project.id)).all();
+  const vars: Var[] = rawVars.map((v) => ({
+    key: v.key,
+    isSecret: v.isSecret,
+    value: v.isSecret ? decryptSecret(v.valueEnc) : v.valueEnc,
+  }));
+
+  const browser = await chromium.launch({ args: [`--remote-debugging-port=${CDP_PORT}`] });
+  process.env.PW_CDP_ENDPOINT = `http://localhost:${CDP_PORT}`;
+  const context = await browser.newContext();
+  // A single page owned by the runner. The agent's MCP reuses this exact page
+  // over CDP (proven by spike), so evidence attached here sees the agent's work.
+  const page = await context.newPage();
+  const evidence = new EvidenceCollector(page, runId);
+  let anyFailed = false;
+
+  try {
+    await page.goto(project.baseUrl, { waitUntil: "domcontentloaded" });
+
+    const steps = flow.steps;
+    for (let i = 0; i < steps.length; i++) {
+      // Real (unmasked) values go to the agent so it can actually drive the UI.
+      const resolved = substituteVars(steps[i], vars);
+      const outcome = await runStepWithAgent({
+        stepText: resolved,
+        baseUrl: project.baseUrl,
+        stepIndex: i,
+        totalSteps: steps.length,
+      });
+
+      // Persist the step result. Stored text is masked so secrets never touch
+      // the DB, even though the agent received the real values above.
+      const sr = db
+        .insert(stepResults)
+        .values({
+          runId,
+          stepIndex: i,
+          stepText: maskSecrets(steps[i], vars),
+          status: outcome.status,
+          aiSummary: maskSecrets(outcome.summary, vars),
+        })
+        .returning()
+        .all()[0];
+
+      // Agent findings (functional / visual).
+      for (const f of outcome.findings) {
+        db.insert(findings)
+          .values({
+            runId,
+            stepResultId: sr.id,
+            category: f.category,
+            severity: f.severity,
+            title: maskSecrets(f.title, vars),
+            detail: f.detail ? maskSecrets(f.detail, vars) : null,
+            repro: f.repro ? maskSecrets(f.repro, vars) : null,
+          })
+          .run();
+      }
+
+      // Deterministic console/network findings from this step's captured delta.
+      for (const c of consoleErrors(evidence.snapshotConsole())) {
+        db.insert(findings)
+          .values({
+            runId,
+            stepResultId: sr.id,
+            category: "console",
+            severity: defaultSeverityFor("console"),
+            title: "Console error",
+            detail: maskSecrets(c.text, vars),
+          })
+          .run();
+      }
+      for (const n of networkErrors(evidence.snapshotNetwork())) {
+        db.insert(findings)
+          .values({
+            runId,
+            stepResultId: sr.id,
+            category: "network",
+            severity: defaultSeverityFor("network"),
+            title: `Network ${n.status}`,
+            detail: maskSecrets(n.url, vars),
+          })
+          .run();
+      }
+
+      // Screenshot of the page the agent actually acted on.
+      const shot = await evidence.screenshot(i);
+      db.insert(artifacts).values({ runId, stepResultId: sr.id, type: "screenshot", path: shot }).run();
+
+      if (outcome.status === "failed") {
+        anyFailed = true;
+        break; // hard-stop on first failure (v1)
+      }
+    }
+
+    setRunStatus(runId, anyFailed ? "failed" : "passed");
+  } catch (e) {
+    // Partial evidence (step results / findings / artifacts written before the
+    // throw) is already persisted; record the terminal error state.
+    setRunStatus(runId, "error", String(e));
+  } finally {
+    await browser.close();
+  }
+}
