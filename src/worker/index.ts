@@ -23,6 +23,7 @@ async function tick() {
 async function main() {
   if (process.env.ANTHROPIC_API_KEY) {
     console.warn("[worker] WARNING: ANTHROPIC_API_KEY is set — runs will bill API credits, not subscription. Unset it to use the CLI subscription.");
+    delete process.env.ANTHROPIC_API_KEY;
   }
   runMigrations();
   console.log(`[worker] started, MAX_CONCURRENT_RUNS=${MAX}`);

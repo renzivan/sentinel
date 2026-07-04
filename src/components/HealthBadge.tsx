@@ -39,12 +39,22 @@ export default function HealthBadge() {
     );
   }
 
-  const ready = health.claudeCli || health.apiKeySet;
+  const ready = health.claudeCli;
+  const title = `Claude CLI: ${health.claudeCli ? "available" : "missing"} · API key: ${health.apiKeySet ? "set" : "not set"}`;
+
+  if (ready && health.apiKeySet) {
+    return (
+      <Pill dotClass="bg-amber-500" className="border-amber-300 bg-amber-50 text-amber-700" title={title}>
+        API key set — will bill credits, unset to use subscription
+      </Pill>
+    );
+  }
+
   return (
     <Pill
       dotClass={ready ? "bg-emerald-500" : "bg-red-500"}
       className={ready ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-red-300 bg-red-50 text-red-700"}
-      title={`Claude CLI: ${health.claudeCli ? "available" : "missing"} · API key: ${health.apiKeySet ? "set" : "not set"}`}
+      title={title}
     >
       {ready ? "Claude ready" : "Claude unavailable"}
     </Pill>

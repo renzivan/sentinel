@@ -15,7 +15,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const pid = Number(id);
-  const { vars } = await req.json() as { vars: { key: string; value: string; isSecret: boolean }[] };
+  const body = await req.json() as { vars?: unknown };
+  const { vars: rawVars } = body;
+  if (!Array.isArray(rawVars)) {
+    return NextResponse.json({ error: "vars must be an array" }, { status: 400 });
+  }
+  const vars = rawVars as { key: string; value: string; isSecret: boolean }[];
   const db = getDb();
   const existing = db.select().from(projectVars).where(eq(projectVars.projectId, pid)).all();
   db.delete(projectVars).where(eq(projectVars.projectId, pid)).run();

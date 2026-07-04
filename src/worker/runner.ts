@@ -53,8 +53,9 @@ export async function executeRun(runId: number): Promise<void> {
     return;
   }
 
+  let vars: Var[] = [];
   const rawVars = db.select().from(projectVars).where(eq(projectVars.projectId, project.id)).all();
-  const vars: Var[] = rawVars.map((v) => ({
+  vars = rawVars.map((v) => ({
     key: v.key,
     isSecret: v.isSecret,
     value: v.isSecret ? decryptSecret(v.valueEnc) : v.valueEnc,
@@ -154,7 +155,7 @@ export async function executeRun(runId: number): Promise<void> {
   } catch (e) {
     // Partial evidence (step results / findings / artifacts written before the
     // throw) is already persisted; record the terminal error state.
-    setRunStatus(runId, "error", String(e));
+    setRunStatus(runId, "error", maskSecrets(String(e), vars));
   } finally {
     await browser.close();
   }

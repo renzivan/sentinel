@@ -110,6 +110,13 @@ export default function VarsEditor({ projectId }: { projectId: number }) {
         </button>
       </div>
 
+      {rows.length > 0 && (
+        <p className="text-xs text-neutral-400">
+          Note: secret values typed into a field that renders visibly on the tested app can appear in run
+          screenshots. Prefer masked/password fields on the app under test for secret variables.
+        </p>
+      )}
+
       {rows.length === 0 ? (
         <p className="py-2 text-sm text-neutral-500">
           No variables yet. Use <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">{"{{key}}"}</code> in
