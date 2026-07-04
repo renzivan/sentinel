@@ -45,19 +45,20 @@ export async function runStepWithAgent(args: {
   baseUrl: string;
   stepIndex: number;
   totalSteps: number;
+  cdpEndpoint: string;
 }): Promise<StepOutcome> {
-  const cdpEndpoint = process.env.PW_CDP_ENDPOINT;
+  const { cdpEndpoint } = args;
   if (!cdpEndpoint) {
     return {
       status: "failed",
-      summary: "PW_CDP_ENDPOINT not set; cannot attach Playwright MCP to the shared browser",
+      summary: "cdpEndpoint not set; cannot attach Playwright MCP to the shared browser",
       findings: [
         {
           category: "functional",
           severity: "high",
-          title: "Missing PW_CDP_ENDPOINT",
+          title: "Missing cdpEndpoint",
           detail:
-            "The runner must launch Chromium with a fixed CDP port and set PW_CDP_ENDPOINT before invoking the agent step executor.",
+            "The runner must launch Chromium with a per-run CDP port and pass its endpoint to runStepWithAgent.",
         },
       ],
     };
