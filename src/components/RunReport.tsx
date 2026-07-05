@@ -4,6 +4,7 @@ import { useState } from "react";
 import SeverityBadge from "@/components/SeverityBadge";
 import { SEVERITY_ORDER } from "@/lib/severity";
 import { runStatusClasses, runStatusDotClasses } from "@/lib/status";
+import { formatTokens, sumTokens } from "@/lib/tokens";
 import type { Severity } from "@/lib/types";
 
 export type RunJson = {
@@ -23,6 +24,7 @@ export type StepResultJson = {
   stepText: string;
   status: string;
   aiSummary: string | null;
+  tokens: number | null;
 };
 
 export type FindingJson = {
@@ -68,6 +70,8 @@ export default function RunReport({ bundle }: { bundle: RunBundle }) {
   const { run, steps, findings, artifacts } = bundle;
   const [lightbox, setLightbox] = useState<string | null>(null);
 
+  const runTokens = sumTokens(steps);
+
   const severityCounts = SEVERITY_ORDER.map((sev) => ({
     severity: sev,
     count: findings.filter((f) => f.severity === sev).length,
@@ -105,6 +109,9 @@ export default function RunReport({ bundle }: { bundle: RunBundle }) {
             </span>
             <span className="text-sm text-neutral-500">Run #{run.id}</span>
             <span className="text-sm text-neutral-500">{formatDuration(run.startedAt, run.finishedAt)}</span>
+            {runTokens != null && (
+              <span className="text-sm text-neutral-500">{formatTokens(runTokens)} tokens</span>
+            )}
           </div>
           {severityCounts.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
@@ -150,6 +157,11 @@ export default function RunReport({ bundle }: { bundle: RunBundle }) {
                           >
                             {step.status}
                           </span>
+                          {step.tokens != null && (
+                            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500">
+                              {formatTokens(step.tokens)} tokens
+                            </span>
+                          )}
                         </div>
                         <p className="mt-1 text-sm text-neutral-900">{step.stepText}</p>
                         {step.aiSummary && <p className="mt-1 text-sm text-neutral-500">{step.aiSummary}</p>}

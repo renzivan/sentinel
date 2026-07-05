@@ -1,0 +1,1 @@
+ALTER TABLE `step_results` ADD `tokens` integer;

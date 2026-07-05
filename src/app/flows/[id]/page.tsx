@@ -4,6 +4,8 @@ import { flows, projects, runs } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import FlowEditor from "@/components/FlowEditor";
 import { runStatusClasses, runStatusDotClasses } from "@/lib/status";
+import { getRunTokenTotals } from "@/db/queries";
+import { formatTokens } from "@/lib/tokens";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,7 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
 
   const project = db.select().from(projects).where(eq(projects.id, flow.projectId)).all()[0];
   const pastRuns = db.select().from(runs).where(eq(runs.flowId, flowId)).orderBy(desc(runs.id)).all();
+  const tokenTotals = getRunTokenTotals(pastRuns.map((r) => r.id));
 
   return (
     <div className="space-y-8">
@@ -61,6 +64,9 @@ export default async function FlowPage({ params }: { params: Promise<{ id: strin
                     {r.startedAt && (
                       <span className="ml-2">
                         {new Date(r.startedAt).toLocaleString()} · {formatDuration(r.startedAt, r.finishedAt)}
+                        {tokenTotals.has(r.id) && (
+                          <> · {formatTokens(tokenTotals.get(r.id))} tokens</>
+                        )}
                       </span>
                     )}
                   </div>

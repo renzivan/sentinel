@@ -1,6 +1,23 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, inArray, sql } from "drizzle-orm";
 import { getDb } from "./client.js";
 import { runs, stepResults, findings, artifacts, projects, flows } from "./schema.js";
+
+// Total step tokens per run, for a set of run ids. Runs with no tracked step
+// tokens are absent from the map (render as "—" rather than 0).
+export function getRunTokenTotals(runIds: number[]): Map<number, number> {
+  const totals = new Map<number, number>();
+  if (runIds.length === 0) return totals;
+  const rows = getDb()
+    .select({ runId: stepResults.runId, total: sql<number>`sum(${stepResults.tokens})` })
+    .from(stepResults)
+    .where(inArray(stepResults.runId, runIds))
+    .groupBy(stepResults.runId)
+    .all();
+  for (const r of rows) {
+    if (r.total != null) totals.set(r.runId, Number(r.total));
+  }
+  return totals;
+}
 
 export type SidebarFlow = { id: number; name: string };
 export type SidebarProject = { id: number; name: string; flows: SidebarFlow[] };

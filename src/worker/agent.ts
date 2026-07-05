@@ -25,10 +25,11 @@ function extractJson(text: string): any | null {
   }
 }
 
-function unparseableOutcome(raw: string): StepOutcome {
+function unparseableOutcome(raw: string, tokens: number | null): StepOutcome {
   return {
     status: "failed",
     summary: "agent output unparseable",
+    tokens,
     findings: [
       {
         category: "functional",
@@ -38,6 +39,23 @@ function unparseableOutcome(raw: string): StepOutcome {
       },
     ],
   };
+}
+
+// Total token movement for the step: fresh input + output plus cache traffic.
+// The SDK's result `usage` is cumulative over the turn's internal tool-call
+// round trips, which is exactly the per-step total we want.
+function totalTokens(usage: {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+}): number {
+  return (
+    (usage.input_tokens ?? 0) +
+    (usage.output_tokens ?? 0) +
+    (usage.cache_creation_input_tokens ?? 0) +
+    (usage.cache_read_input_tokens ?? 0)
+  );
 }
 
 export async function runStepWithAgent(args: {
@@ -52,6 +70,7 @@ export async function runStepWithAgent(args: {
     return {
       status: "failed",
       summary: "cdpEndpoint not set; cannot attach Playwright MCP to the shared browser",
+      tokens: null,
       findings: [
         {
           category: "functional",
@@ -70,6 +89,7 @@ Perform this single step now, then report the JSON verdict.`;
 
   let finalText = "";
   let abnormalResult: { subtype: string; errors: string[] } | null = null;
+  let tokens: number | null = null;
 
   try {
     const stream = query({
@@ -114,14 +134,19 @@ Perform this single step now, then report the JSON verdict.`;
         for (const block of msg.message.content) {
           if (block.type === "text") finalText += block.text;
         }
-      } else if (msg.type === "result" && msg.subtype !== "success") {
-        abnormalResult = { subtype: msg.subtype, errors: msg.errors };
+      } else if (msg.type === "result") {
+        // Both success and error result messages carry cumulative usage.
+        tokens = totalTokens(msg.usage);
+        if (msg.subtype !== "success") {
+          abnormalResult = { subtype: msg.subtype, errors: msg.errors };
+        }
       }
     }
   } catch (e) {
     return {
       status: "failed",
       summary: `agent error: ${String(e)}`,
+      tokens,
       findings: [
         {
           category: "functional",
@@ -139,6 +164,7 @@ Perform this single step now, then report the JSON verdict.`;
       return {
         status: "failed",
         summary: `agent turn ended without a verdict (${abnormalResult.subtype})`,
+        tokens,
         findings: [
           {
             category: "functional",
@@ -151,7 +177,7 @@ Perform this single step now, then report the JSON verdict.`;
         ],
       };
     }
-    return unparseableOutcome(finalText);
+    return unparseableOutcome(finalText, tokens);
   }
 
   const findings: FindingInput[] = Array.isArray(parsed.findings)
@@ -166,5 +192,5 @@ Perform this single step now, then report the JSON verdict.`;
       }))
     : [];
 
-  return { status: parsed.status, summary: String(parsed.summary ?? ""), findings };
+  return { status: parsed.status, summary: String(parsed.summary ?? ""), tokens, findings };
 }

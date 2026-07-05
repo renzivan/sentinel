@@ -96,6 +96,7 @@ export async function executeRun(runId: number): Promise<void> {
           stepText: maskSecrets(steps[i], vars),
           status: outcome.status,
           aiSummary: maskSecrets(outcome.summary, vars),
+          tokens: outcome.tokens,
         })
         .returning()
         .all()[0];

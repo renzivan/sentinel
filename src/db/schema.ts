@@ -49,6 +49,9 @@ export const stepResults = sqliteTable("step_results", {
   stepText: text("step_text").notNull(),
   status: text("status").notNull(), // passed|failed
   aiSummary: text("ai_summary"),
+  // Total agent tokens for this step (input + output + cache read + cache
+  // creation). Null for runs recorded before token tracking existed.
+  tokens: integer("tokens"),
 });
 
 export const findings = sqliteTable("findings", {
