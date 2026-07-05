@@ -5,7 +5,7 @@ import { getDb } from "../db/client.js";
 import { runs, flows, projects, projectVars, stepResults, findings, artifacts } from "../db/schema.js";
 import { EvidenceCollector, consoleErrors, networkErrors } from "./evidence.js";
 import { runStepWithAgent } from "./agent.js";
-import { substituteVars, maskSecrets, type Var } from "../lib/vars.js";
+import { substituteVars, maskSecrets, snapshotVars, type Var } from "../lib/vars.js";
 import { defaultSeverityFor } from "../lib/severity.js";
 import { decryptSecret } from "../lib/crypto.js";
 import { setRunStatus } from "./queue.js";
@@ -60,6 +60,13 @@ export async function executeRun(runId: number): Promise<void> {
     isSecret: v.isSecret,
     value: v.isSecret ? decryptSecret(v.valueEnc) : v.valueEnc,
   }));
+
+  // Pin the steps + vars this run actually used. A later edit to the flow or
+  // project vars won't rewrite this record. Secrets are masked in the snapshot.
+  db.update(runs)
+    .set({ stepsSnapshot: flow.steps, varsSnapshot: snapshotVars(vars) })
+    .where(eq(runs.id, runId))
+    .run();
 
   const cdpPort = await getFreePort();
   const cdpEndpoint = `http://localhost:${cdpPort}`;

@@ -1,4 +1,5 @@
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
+import type { Var } from "../lib/vars.js";
 
 const id = () => integer("id").primaryKey({ autoIncrement: true });
 const now = () => integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date());
@@ -39,6 +40,12 @@ export const runs = sqliteTable("runs", {
   error: text("error"),
   startedAt: integer("started_at", { mode: "timestamp" }),
   finishedAt: integer("finished_at", { mode: "timestamp" }),
+  // Provenance snapshots taken when the run executes: the exact flow steps and
+  // resolved variables used, so later edits to the flow or project vars can't
+  // rewrite what a past run actually ran. Secret var values are masked.
+  // Null for runs recorded before snapshotting existed.
+  stepsSnapshot: text("steps_snapshot", { mode: "json" }).$type<string[]>(),
+  varsSnapshot: text("vars_snapshot", { mode: "json" }).$type<Var[]>(),
   createdAt: now(),
 });
 

@@ -15,6 +15,13 @@
       "when": 1783212590650,
       "tag": "0001_glorious_ozymandias",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1783214329270,
+      "tag": "0002_silly_meltdown",
+      "breakpoints": true
     }
   ]
 }

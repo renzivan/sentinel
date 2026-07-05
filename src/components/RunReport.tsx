@@ -7,6 +7,8 @@ import { runStatusClasses, runStatusDotClasses } from "@/lib/status";
 import { formatTokens, sumTokens } from "@/lib/tokens";
 import type { Severity } from "@/lib/types";
 
+export type VarSnapshotJson = { key: string; value: string; isSecret: boolean };
+
 export type RunJson = {
   id: number;
   flowId: number;
@@ -14,6 +16,8 @@ export type RunJson = {
   error: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  stepsSnapshot: string[] | null;
+  varsSnapshot: VarSnapshotJson[] | null;
   createdAt: string;
 };
 
@@ -130,6 +134,51 @@ export default function RunReport({ bundle }: { bundle: RunBundle }) {
           </p>
         )}
       </div>
+
+      {/* Config used — provenance snapshot of what this run actually ran, so a
+          later edit to the flow or project vars can't rewrite this record. */}
+      {(run.varsSnapshot?.length || run.stepsSnapshot?.length) && (
+        <details className="rounded-lg border border-neutral-200 bg-white p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-neutral-900">
+            Config used
+            {run.varsSnapshot?.length ? (
+              <span className="ml-2 font-normal text-neutral-400">
+                {run.varsSnapshot.length} variable{run.varsSnapshot.length === 1 ? "" : "s"}
+              </span>
+            ) : null}
+          </summary>
+          <div className="mt-3 space-y-4">
+            {run.varsSnapshot?.length ? (
+              <div>
+                <h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">Variables</h3>
+                <dl className="divide-y divide-neutral-100 rounded-md border border-neutral-100">
+                  {run.varsSnapshot.map((v) => (
+                    <div key={v.key} className="flex items-center gap-3 px-3 py-1.5">
+                      <dt className="font-mono text-xs text-neutral-500">{v.key}</dt>
+                      <dd className="min-w-0 flex-1 truncate font-mono text-xs text-neutral-900">{v.value}</dd>
+                      {v.isSecret && (
+                        <span className="shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-500">
+                          secret
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ) : null}
+            {run.stepsSnapshot?.length ? (
+              <div>
+                <h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">Flow steps</h3>
+                <ol className="list-inside list-decimal space-y-1 text-sm text-neutral-700">
+                  {run.stepsSnapshot.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+          </div>
+        </details>
+      )}
 
       {/* Steps timeline */}
       <div className="space-y-3">

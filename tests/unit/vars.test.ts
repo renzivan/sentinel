@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { substituteVars, maskSecrets, type Var } from "@/lib/vars";
+import { substituteVars, maskSecrets, snapshotVars, type Var } from "@/lib/vars";
 
 const vars: Var[] = [
   { key: "email", value: "test@x.com", isSecret: false },
@@ -20,5 +20,19 @@ describe("maskSecrets", () => {
   it("masks secret values, not non-secret", () => {
     expect(maskSecrets("logged in test@x.com with hunter2", vars))
       .toBe("logged in test@x.com with ***");
+  });
+});
+
+describe("snapshotVars", () => {
+  it("masks secret values but keeps keys, preserves non-secret values", () => {
+    expect(snapshotVars(vars)).toEqual([
+      { key: "email", value: "test@x.com", isSecret: false },
+      { key: "password", value: "***", isSecret: true },
+    ]);
+  });
+  it("does not mutate the input", () => {
+    const input: Var[] = [{ key: "password", value: "hunter2", isSecret: true }];
+    snapshotVars(input);
+    expect(input[0].value).toBe("hunter2");
   });
 });
