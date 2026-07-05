@@ -1,6 +1,7 @@
-# E2E Tester
+# Sentinel
 
-A local-first web app for end-to-end testing of web applications using natural language.
+Your app's sentinel — AI-driven end-to-end testing.
+A local-first web app: write user flows in plain English, and Sentinel drives your app in a real browser with Claude + Playwright, reporting every functional, visual, console, and network issue it finds.
 
 Define projects with target URLs, write flows as natural-language steps, and trigger runs to drive Claude through the steps and produce an in-app report of findings (functional assertions, console errors, network issues, and visual regressions).
 

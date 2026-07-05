@@ -1,11 +1,7 @@
 {
-  "name": "e2e-tester",
+  "name": "sentinel",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "description": "AI-driven end-to-end testing — write flows in plain English; Sentinel drives your app with Claude + Playwright and reports functional, visual, console, and network issues.",
   "scripts": {
     "dev": "concurrently -n web,worker -c cyan,magenta -k \"next dev\" \"tsx watch src/worker/index.ts\"",
     "dev:web": "next dev",
