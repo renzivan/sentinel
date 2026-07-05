@@ -46,7 +46,7 @@ This creates the SQLite database and runs all migrations.
 
 ## Running
 
-E2E Tester needs two processes: the **web UI** and the **run executor (worker)**.
+Sentinel needs two processes: the **web UI** and the **run executor (worker)**.
 
 ### Local: one command
 
@@ -164,7 +164,7 @@ This includes:
 
 ## Shared Subscription Caveat
 
-E2E Tester uses your Claude subscription (CLI login) rather than API credits.
+Sentinel uses your Claude subscription (CLI login) rather than API credits.
 
 **Important notes:**
 - One `claude` login is a **shared throughput budget** across all concurrent runs.
