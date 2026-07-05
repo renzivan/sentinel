@@ -46,7 +46,7 @@ export default function NewFlowForm({ projectId }: { projectId: number }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-700"
+        className="rounded-md bg-brand px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
       >
         New flow
       </button>
@@ -90,7 +90,7 @@ export default function NewFlowForm({ projectId }: { projectId: number }) {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-md bg-brand px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? "Creating…" : "Create flow"}
         </button>

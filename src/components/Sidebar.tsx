@@ -124,7 +124,7 @@ export default function Sidebar({ projects }: { projects: SidebarProject[] }) {
                               href={`/flows/${f.id}`}
                               className={`block truncate rounded-md px-2 py-1.5 text-sm ${
                                 isActiveFlow
-                                  ? "bg-neutral-100 font-medium text-neutral-900"
+                                  ? "bg-brand-50 font-medium text-brand-700"
                                   : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
                               }`}
                             >

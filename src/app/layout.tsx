@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-neutral-50 text-neutral-900 antialiased">
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-neutral-200 bg-white px-6">
           <a href="/" className="flex items-center gap-2 font-semibold tracking-tight text-neutral-900 hover:text-neutral-700">
-            <Logo className="h-6 w-6" />
+            <Logo className="h-6 w-6 text-brand" />
             Sentinel
           </a>
           <HealthBadge />

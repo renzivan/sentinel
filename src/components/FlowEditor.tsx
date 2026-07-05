@@ -109,7 +109,7 @@ export default function FlowEditor({ flow }: { flow: Flow }) {
           type="button"
           onClick={save}
           disabled={saving || !dirty}
-          className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-md bg-brand px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save"}
         </button>
