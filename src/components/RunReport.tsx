@@ -193,12 +193,17 @@ export default function RunReport({ bundle }: { bundle: RunBundle }) {
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-neutral-400">#{step.stepIndex + 1}</span>
                           <span
-                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${
                               step.status === "passed"
                                 ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                                : "border-red-300 bg-red-50 text-red-700"
+                                : step.status === "running"
+                                  ? "border-blue-300 bg-blue-50 text-blue-700"
+                                  : "border-red-300 bg-red-50 text-red-700"
                             }`}
                           >
+                            {step.status === "running" && (
+                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+                            )}
                             {step.status}
                           </span>
                           {step.tokens != null && (

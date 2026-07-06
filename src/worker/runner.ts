@@ -99,6 +99,23 @@ export async function executeRun(runId: number): Promise<void> {
     for (let i = 0; i < steps.length; i++) {
       if (cancelled) break;
       const resolved = substituteVars(steps[i], vars);
+
+      // Record the step as `running` before the agent starts so the polling UI
+      // shows the in-flight step immediately, not just completed ones. Updated
+      // to its terminal status once the agent turn finishes below.
+      const sr = db
+        .insert(stepResults)
+        .values({
+          runId,
+          stepIndex: i,
+          stepText: steps[i],
+          status: "running",
+          aiSummary: null,
+          tokens: null,
+        })
+        .returning()
+        .all()[0];
+
       stepAbort = new AbortController();
       const outcome = await runStepWithAgent({
         stepText: resolved,
@@ -110,21 +127,21 @@ export async function executeRun(runId: number): Promise<void> {
       });
 
       // A stop that landed mid-step aborts the agent turn, which surfaces as a
-      // failed outcome. Don't record that as a real step result — just stop.
-      if (cancelled) break;
+      // failed outcome. Drop the `running` placeholder — the step never
+      // completed, so it isn't a real result — and stop.
+      if (cancelled) {
+        db.delete(stepResults).where(eq(stepResults.id, sr.id)).run();
+        break;
+      }
 
-      const sr = db
-        .insert(stepResults)
-        .values({
-          runId,
-          stepIndex: i,
-          stepText: steps[i],
+      db.update(stepResults)
+        .set({
           status: outcome.status,
           aiSummary: outcome.summary,
           tokens: outcome.tokens,
         })
-        .returning()
-        .all()[0];
+        .where(eq(stepResults.id, sr.id))
+        .run();
 
       // Agent findings (functional / visual).
       for (const f of outcome.findings) {
