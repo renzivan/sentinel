@@ -7,7 +7,6 @@ import { eq } from "drizzle-orm";
 
 beforeEach(() => {
   process.env.DATABASE_PATH = ":memory:";
-  process.env.ENCRYPTION_KEY = "11".repeat(32);
   runMigrations();
 });
 

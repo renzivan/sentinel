@@ -5,9 +5,8 @@ import { getDb } from "../db/client.js";
 import { runs, flows, projects, projectVars, stepResults, findings, artifacts } from "../db/schema.js";
 import { EvidenceCollector, consoleErrors, networkErrors } from "./evidence.js";
 import { runStepWithAgent } from "./agent.js";
-import { substituteVars, maskSecrets, snapshotVars, type Var } from "../lib/vars.js";
+import { substituteVars, snapshotVars, type Var } from "../lib/vars.js";
 import { defaultSeverityFor } from "../lib/severity.js";
-import { decryptSecret } from "../lib/crypto.js";
 import { setRunStatus } from "./queue.js";
 
 // Each run needs its own CDP port shared between the runner's Playwright
@@ -55,14 +54,10 @@ export async function executeRun(runId: number): Promise<void> {
 
   let vars: Var[] = [];
   const rawVars = db.select().from(projectVars).where(eq(projectVars.projectId, project.id)).all();
-  vars = rawVars.map((v) => ({
-    key: v.key,
-    isSecret: v.isSecret,
-    value: v.isSecret ? decryptSecret(v.valueEnc) : v.valueEnc,
-  }));
+  vars = rawVars.map((v) => ({ key: v.key, value: v.value }));
 
   // Pin the steps + vars this run actually used. A later edit to the flow or
-  // project vars won't rewrite this record. Secrets are masked in the snapshot.
+  // project vars won't rewrite this record.
   db.update(runs)
     .set({ stepsSnapshot: flow.steps, varsSnapshot: snapshotVars(vars) })
     .where(eq(runs.id, runId))
@@ -83,7 +78,6 @@ export async function executeRun(runId: number): Promise<void> {
 
     const steps = flow.steps;
     for (let i = 0; i < steps.length; i++) {
-      // Real (unmasked) values go to the agent so it can actually drive the UI.
       const resolved = substituteVars(steps[i], vars);
       const outcome = await runStepWithAgent({
         stepText: resolved,
@@ -93,16 +87,14 @@ export async function executeRun(runId: number): Promise<void> {
         cdpEndpoint,
       });
 
-      // Persist the step result. Stored text is masked so secrets never touch
-      // the DB, even though the agent received the real values above.
       const sr = db
         .insert(stepResults)
         .values({
           runId,
           stepIndex: i,
-          stepText: maskSecrets(steps[i], vars),
+          stepText: steps[i],
           status: outcome.status,
-          aiSummary: maskSecrets(outcome.summary, vars),
+          aiSummary: outcome.summary,
           tokens: outcome.tokens,
         })
         .returning()
@@ -116,9 +108,9 @@ export async function executeRun(runId: number): Promise<void> {
             stepResultId: sr.id,
             category: f.category,
             severity: f.severity,
-            title: maskSecrets(f.title, vars),
-            detail: f.detail ? maskSecrets(f.detail, vars) : null,
-            repro: f.repro ? maskSecrets(f.repro, vars) : null,
+            title: f.title,
+            detail: f.detail ?? null,
+            repro: f.repro ?? null,
           })
           .run();
       }
@@ -132,7 +124,7 @@ export async function executeRun(runId: number): Promise<void> {
             category: "console",
             severity: defaultSeverityFor("console"),
             title: "Console error",
-            detail: maskSecrets(c.text, vars),
+            detail: c.text,
           })
           .run();
       }
@@ -144,7 +136,7 @@ export async function executeRun(runId: number): Promise<void> {
             category: "network",
             severity: defaultSeverityFor("network"),
             title: `Network ${n.status}`,
-            detail: maskSecrets(n.url, vars),
+            detail: n.url,
           })
           .run();
       }
@@ -163,7 +155,7 @@ export async function executeRun(runId: number): Promise<void> {
   } catch (e) {
     // Partial evidence (step results / findings / artifacts written before the
     // throw) is already persisted; record the terminal error state.
-    setRunStatus(runId, "error", maskSecrets(String(e), vars));
+    setRunStatus(runId, "error", String(e));
   } finally {
     await browser.close();
   }

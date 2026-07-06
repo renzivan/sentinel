@@ -7,7 +7,7 @@ import { runStatusClasses, runStatusDotClasses } from "@/lib/status";
 import { formatTokens, sumTokens } from "@/lib/tokens";
 import type { Severity } from "@/lib/types";
 
-export type VarSnapshotJson = { key: string; value: string; isSecret: boolean };
+export type VarSnapshotJson = { key: string; value: string };
 
 export type RunJson = {
   id: number;
@@ -156,11 +156,6 @@ export default function RunReport({ bundle }: { bundle: RunBundle }) {
                     <div key={v.key} className="flex items-center gap-3 px-3 py-1.5">
                       <dt className="font-mono text-xs text-neutral-500">{v.key}</dt>
                       <dd className="min-w-0 flex-1 truncate font-mono text-xs text-neutral-900">{v.value}</dd>
-                      {v.isSecret && (
-                        <span className="shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-500">
-                          secret
-                        </span>
-                      )}
                     </div>
                   ))}
                 </dl>

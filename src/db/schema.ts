@@ -21,8 +21,9 @@ export const projectVars = sqliteTable("project_vars", {
   id: id(),
   projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   key: text("key").notNull(),
-  valueEnc: text("value_enc").notNull(),
-  isSecret: integer("is_secret", { mode: "boolean" }).notNull().default(false),
+  // `value_enc` is a legacy column name from when secret values were encrypted
+  // at rest; values are now stored as plain text.
+  value: text("value_enc").notNull(),
 });
 
 export const flows = sqliteTable("flows", {
@@ -42,7 +43,7 @@ export const runs = sqliteTable("runs", {
   finishedAt: integer("finished_at", { mode: "timestamp" }),
   // Provenance snapshots taken when the run executes: the exact flow steps and
   // resolved variables used, so later edits to the flow or project vars can't
-  // rewrite what a past run actually ran. Secret var values are masked.
+  // rewrite what a past run actually ran.
   // Null for runs recorded before snapshotting existed.
   stepsSnapshot: text("steps_snapshot", { mode: "json" }).$type<string[]>(),
   varsSnapshot: text("vars_snapshot", { mode: "json" }).$type<Var[]>(),

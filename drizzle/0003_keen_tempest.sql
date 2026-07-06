@@ -1,0 +1,1 @@
+ALTER TABLE `project_vars` DROP COLUMN `is_secret`;

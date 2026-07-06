@@ -28,13 +28,7 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-Generate a 64-character hex encryption key for secrets:
-
-```bash
-openssl rand -hex 32
-```
-
-Update `.env` with the generated key and any custom settings (see [Configuration](#configuration) for details).
+Update `.env` with any custom settings (see [Configuration](#configuration) for details).
 
 ### 3. Initialize Database
 
@@ -81,11 +75,11 @@ The worker will print a warning if `ANTHROPIC_API_KEY` is set; it unsets it so r
 
 ### Add Project Variables (Optional)
 
-Project variables allow you to store secrets (API keys, passwords) securely.
+Project variables let you reuse values across flow steps.
 
 1. Go to the project page.
 2. In the "Variables" section, add key-value pairs.
-3. Secrets are encrypted at rest and automatically masked in reports.
+3. Values are stored as plain text and appear verbatim in run screenshots, findings, and logs — don't store anything sensitive.
 4. Reference variables in steps using `{{variable_name}}`.
 
 ### Create a Flow
@@ -118,7 +112,6 @@ Environment variables in `.env`:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ENCRYPTION_KEY` | 64-character hex key for encrypting secrets (generate with `openssl rand -hex 32`) | Required |
 | `MAX_CONCURRENT_RUNS` | Maximum number of concurrent run executions | `1` |
 | `DATABASE_PATH` | Path to SQLite database file | `data/e2e.db` |
 | `ARTIFACTS_DIR` | Directory where screenshots and evidence are stored | `data/artifacts` |
