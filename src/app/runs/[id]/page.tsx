@@ -11,7 +11,22 @@ export default function RunPage({ params }: { params: Promise<{ id: string }> })
   const [bundle, setBundle] = useState<RunBundle | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stopping, setStopping] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function stopRun() {
+    setStopping(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/runs/${id}/cancel`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to stop run");
+      // Leave `stopping` true; polling will surface the terminal `cancelled`
+      // status and the Stop button disappears with it.
+    } catch {
+      setError("Failed to stop run");
+      setStopping(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -76,10 +91,20 @@ export default function RunPage({ params }: { params: Promise<{ id: string }> })
           &larr; Back to flow
         </a>
         {polling && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-neutral-400">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
-            Refreshing…
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 text-xs text-neutral-400">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+              Refreshing…
+            </span>
+            <button
+              type="button"
+              onClick={stopRun}
+              disabled={stopping}
+              className="rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {stopping ? "Stopping…" : "Stop run"}
+            </button>
+          </div>
         )}
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}

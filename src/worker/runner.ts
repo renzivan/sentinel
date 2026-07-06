@@ -7,7 +7,10 @@ import { EvidenceCollector, consoleErrors, networkErrors } from "./evidence.js";
 import { runStepWithAgent } from "./agent.js";
 import { substituteVars, snapshotVars, type Var } from "../lib/vars.js";
 import { defaultSeverityFor } from "../lib/severity.js";
-import { setRunStatus } from "./queue.js";
+import { setRunStatus, isCancelRequested } from "./queue.js";
+
+// How often the runner re-reads the run's cancel flag while a step is in flight.
+const CANCEL_POLL_MS = 1000;
 
 // Each run needs its own CDP port shared between the runner's Playwright
 // client (which owns the page + evidence listeners) and this run's
@@ -73,19 +76,42 @@ export async function executeRun(runId: number): Promise<void> {
   const evidence = new EvidenceCollector(page, runId);
   let anyFailed = false;
 
+  // Cooperative cancellation. The web process flips `cancelRequested` on the run
+  // row; we poll it here and, when set, abort the in-flight step's agent turn so
+  // a stop lands promptly instead of waiting out the current step.
+  let cancelled = false;
+  let stepAbort: AbortController | null = null;
+  const cancelPoll = setInterval(() => {
+    try {
+      if (isCancelRequested(runId)) {
+        cancelled = true;
+        stepAbort?.abort();
+      }
+    } catch {
+      // Transient DB read error — try again on the next tick.
+    }
+  }, CANCEL_POLL_MS);
+
   try {
     await page.goto(project.baseUrl, { waitUntil: "domcontentloaded" });
 
     const steps = flow.steps;
     for (let i = 0; i < steps.length; i++) {
+      if (cancelled) break;
       const resolved = substituteVars(steps[i], vars);
+      stepAbort = new AbortController();
       const outcome = await runStepWithAgent({
         stepText: resolved,
         baseUrl: project.baseUrl,
         stepIndex: i,
         totalSteps: steps.length,
         cdpEndpoint,
+        abortController: stepAbort,
       });
+
+      // A stop that landed mid-step aborts the agent turn, which surfaces as a
+      // failed outcome. Don't record that as a real step result — just stop.
+      if (cancelled) break;
 
       const sr = db
         .insert(stepResults)
@@ -151,12 +177,19 @@ export async function executeRun(runId: number): Promise<void> {
       }
     }
 
-    setRunStatus(runId, anyFailed ? "failed" : "passed");
+    setRunStatus(runId, cancelled ? "cancelled" : anyFailed ? "failed" : "passed");
   } catch (e) {
-    // Partial evidence (step results / findings / artifacts written before the
-    // throw) is already persisted; record the terminal error state.
-    setRunStatus(runId, "error", String(e));
+    // A stop aborts the in-flight step, which can surface as a thrown error;
+    // that's a clean cancel, not a run failure.
+    if (cancelled) {
+      setRunStatus(runId, "cancelled");
+    } else {
+      // Partial evidence (step results / findings / artifacts written before the
+      // throw) is already persisted; record the terminal error state.
+      setRunStatus(runId, "error", String(e));
+    }
   } finally {
+    clearInterval(cancelPoll);
     await browser.close();
   }
 }

@@ -1,6 +1,6 @@
-export type RunStatus = "queued" | "running" | "passed" | "failed" | "error";
+export type RunStatus = "queued" | "running" | "passed" | "failed" | "error" | "cancelled";
 
-export const TERMINAL_RUN_STATUSES: RunStatus[] = ["passed", "failed", "error"];
+export const TERMINAL_RUN_STATUSES: RunStatus[] = ["passed", "failed", "error", "cancelled"];
 
 export function isTerminalRunStatus(status: string): boolean {
   return (TERMINAL_RUN_STATUSES as string[]).includes(status);
@@ -15,6 +15,8 @@ export function runStatusClasses(status: string): string {
       return "border-red-300 bg-red-50 text-red-700";
     case "running":
       return "border-blue-300 bg-blue-50 text-blue-700";
+    case "cancelled":
+      return "border-amber-300 bg-amber-50 text-amber-700";
     case "queued":
     default:
       return "border-neutral-300 bg-neutral-50 text-neutral-600";
@@ -30,6 +32,8 @@ export function runStatusDotClasses(status: string): string {
       return "bg-red-500";
     case "running":
       return "bg-blue-500 animate-pulse";
+    case "cancelled":
+      return "bg-amber-500";
     case "queued":
     default:
       return "bg-neutral-400";

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { getDb } from "@/db/client";
 import { runMigrations } from "@/db/migrate";
 import { projects, flows, runs } from "@/db/schema";
-import { claimNextRun, setRunStatus } from "@/worker/queue";
+import { claimNextRun, setRunStatus, requestCancel, isCancelRequested } from "@/worker/queue";
 import { eq } from "drizzle-orm";
 
 beforeEach(() => {
@@ -34,5 +34,38 @@ describe("queue", () => {
     const [row] = await db.select().from(runs).where(eq(runs.id, r.id));
     expect(row.status).toBe("passed");
     expect(row.finishedAt).toBeTruthy();
+  });
+
+  it("cancels a queued run outright without the worker touching it", async () => {
+    const r = await seedRun();
+    expect(requestCancel(r.id)).toBe("cancelled");
+    const db = getDb();
+    const [row] = await db.select().from(runs).where(eq(runs.id, r.id));
+    expect(row.status).toBe("cancelled");
+    expect(row.finishedAt).toBeTruthy();
+    // A cancelled queued run is no longer claimable.
+    expect(claimNextRun()).toBeNull();
+  });
+
+  it("requests cooperative cancel on a running run", async () => {
+    const r = await seedRun();
+    claimNextRun(); // queued -> running
+    expect(requestCancel(r.id)).toBe("cancelling");
+    expect(isCancelRequested(r.id)).toBe(true);
+    const db = getDb();
+    const [row] = await db.select().from(runs).where(eq(runs.id, r.id));
+    // Status stays running until the worker acts on the flag.
+    expect(row.status).toBe("running");
+  });
+
+  it("refuses to cancel an already-terminal run", async () => {
+    const r = await seedRun();
+    claimNextRun();
+    setRunStatus(r.id, "passed");
+    expect(requestCancel(r.id)).toBe("already_terminal");
+  });
+
+  it("reports not_found for an unknown run", () => {
+    expect(requestCancel(999999)).toBe("not_found");
   });
 });

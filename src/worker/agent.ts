@@ -64,6 +64,10 @@ export async function runStepWithAgent(args: {
   stepIndex: number;
   totalSteps: number;
   cdpEndpoint: string;
+  // Aborting this controller stops the in-flight agent turn mid-step, so a stop
+  // request doesn't have to wait out the current step (up to MAX_TURNS of tool
+  // calls). The runner owns it and aborts on a cancel request.
+  abortController?: AbortController;
 }): Promise<StepOutcome> {
   const { cdpEndpoint } = args;
   if (!cdpEndpoint) {
@@ -96,6 +100,7 @@ Perform this single step now, then report the JSON verdict.`;
       prompt,
       options: {
         systemPrompt: SYSTEM,
+        abortController: args.abortController,
         // Isolate this ephemeral step-execution turn from whatever CLAUDE.md /
         // project / user settings happen to exist on the machine running the
         // worker — the agent's only job is this one browser step.

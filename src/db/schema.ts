@@ -37,7 +37,12 @@ export const flows = sqliteTable("flows", {
 export const runs = sqliteTable("runs", {
   id: id(),
   flowId: integer("flow_id").notNull().references(() => flows.id, { onDelete: "cascade" }),
-  status: text("status").notNull().default("queued"), // queued|running|passed|failed|error
+  status: text("status").notNull().default("queued"), // queued|running|passed|failed|error|cancelled
+  // Cooperative stop signal. The web process can only reach an in-flight run
+  // (executing in the separate worker process) through this shared row: it
+  // flips the flag, the worker polls it, aborts the in-flight step, and moves
+  // the run to the terminal `cancelled` status.
+  cancelRequested: integer("cancel_requested", { mode: "boolean" }).notNull().default(false),
   error: text("error"),
   startedAt: integer("started_at", { mode: "timestamp" }),
   finishedAt: integer("finished_at", { mode: "timestamp" }),
